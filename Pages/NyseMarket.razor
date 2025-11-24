@@ -1,0 +1,577 @@
+@page "/nyse"
+@using System.Globalization
+@using System.Linq
+
+<PageTitle>NYSE Market</PageTitle>
+
+<section class="nyse">
+    <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <p class="eyebrow mb-1">NYSE tape</p>
+            <h1 class="h3 mb-1">New York Stock Exchange</h1>
+            <p class="text-muted mb-0">Depth, liquidity and leadership across the floor in one view.</p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <button class="btn btn-outline-secondary btn-sm" @onclick='() => ShowTooltip("Uses delayed composite prints; refresh is simulated.")'>Data policy</button>
+            <button class="btn btn-outline-secondary" @onclick="CopySession">Share snapshot</button>
+            <button class="btn btn-primary" @onclick="OpenIdeaBoard">Bell prep</button>
+        </div>
+    </header>
+
+    <div class="row g-3 mb-4">
+        @foreach (var metric in Metrics)
+        {
+            var deltaClass = metric.Delta >= 0 ? "text-success" : "text-danger";
+            <div class="col-12 col-md-6 col-xl-3">
+                <div class="card shadow-sm h-100 metric-card" @onmouseover="() => ShowTooltip(metric.Hint)" @onmouseout="HideTooltip">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="eyebrow mb-1">@metric.Label</p>
+                                <h3 class="h4 mb-0">@metric.Value</h3>
+                            </div>
+                            <span class="badge bg-light text-dark">@metric.Context</span>
+                        </div>
+                        <p class="mb-0 mt-2 small">@metric.Subtitle</p>
+                        <div class="d-flex align-items-center gap-2 mt-1">
+                            <span class="@deltaClass fw-semibold">@metric.Delta.ToString("+#0.0;-#0.0;0")%</span>
+                            <span class="tone" style="background:@metric.Tone"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Liquidity &amp; tape</p>
+                            <h3 class="h5 mb-0">Intraday glide path</h3>
+                            <p class="text-muted small mb-0">Volume-weighted composite with floor opens + closes.</p>
+                        </div>
+                        <div class="d-flex gap-2 flex-wrap">
+                            @foreach (var session in Sessions)
+                            {
+                                <button class="@($"chip {(SelectedSession == session ? "chip-active" : "")}")" @onclick="() => SetSession(session)">@session</button>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="intraday-chart" @onmouseover='() => ShowTooltip("Area shows liquidity build; bars show auction prints.")' @onmouseout="HideTooltip">
+                        <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="chart-canvas">
+                            <polygon class="area" points="@BuildAreaPoints(SelectedLiquidity)" />
+                            <polyline class="line" points="@BuildLinePoints(SelectedLiquidity)" />
+                            <circle class="focus-dot" cx="100" cy="@GetLastPointY(SelectedLiquidity)" r="1.2" />
+                        </svg>
+                        <div class="chart-bars">
+                            @foreach (var bar in VolumeSeries)
+                            {
+                                <div class="bar" style="height:@bar%"></div>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 align-items-center mt-3">
+                        @foreach (var pulse in TapePulse)
+                        {
+                            <div class="mini-stat" @onmouseover="() => ShowTooltip(pulse.Tooltip)" @onmouseout="HideTooltip">
+                                <div class="small text-muted">@pulse.Label</div>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <span class="fw-semibold">@pulse.Value</span>
+                                    <span class="@(pulse.Delta >= 0 ? "text-success" : "text-danger") small">@pulse.Delta.ToString("+#0.0;-#0.0;0")%</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Breadth</p>
+                            <h3 class="h6 mb-0">Advance / Decline</h3>
+                        </div>
+                        <button class="btn btn-outline-secondary btn-sm" @onclick='() => ShowTooltip("Advancers vs decliners weighted by volume.")'>Method</button>
+                    </div>
+                    <div class="breadth-bar mb-3">
+                        <div class="breadth-adv" style="width:@AdvancePct%"></div>
+                        <div class="breadth-dec" style="width:@DeclinePct%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mb-3">
+                        <div>
+                            <div class="text-muted small">Advancers</div>
+                            <div class="fw-semibold">@AdvanceCount.ToString("N0", CultureInfo.CurrentCulture)</div>
+                        </div>
+                        <div class="text-end">
+                            <div class="text-muted small">Decliners</div>
+                            <div class="fw-semibold">@DeclineCount.ToString("N0", CultureInfo.CurrentCulture)</div>
+                        </div>
+                    </div>
+                    <div class="depth-grid">
+                        @foreach (var lane in DepthLanes)
+                        {
+                            <div class="depth-row">
+                                <div>
+                                    <div class="fw-semibold">@lane.Label</div>
+                                    <div class="text-muted small">@lane.Context</div>
+                                </div>
+                                <div class="depth-bars">
+                                    <div class="depth-fill adv" style="width:@lane.Advance%"></div>
+                                    <div class="depth-fill dec" style="width:@lane.Decline%"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="mt-3 small text-muted d-flex justify-content-between align-items-center">
+                        <span>Green = advancers · Red = decliners</span>
+                        <button class="btn btn-outline-primary btn-sm" @onclick="OpenIdeaBoard">Trade ideas</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <p class="eyebrow mb-1">Movers</p>
+                    <h3 class="h5 mb-0">NYSE leadership</h3>
+                    <p class="text-muted small mb-0">Sortable board across price action, range, and liquidity.</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm" @onclick='() => ShowTooltip("CSV export disabled in demo.")'>Export CSV</button>
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="ToggleTapeOverlay">Toggle overlays</button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table align-middle mb-0 nyse-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th @onclick='() => SortBy("symbol")'>Symbol @SortIcon("symbol")</th>
+                            <th @onclick='() => SortBy("last")'>Last @SortIcon("last")</th>
+                            <th @onclick='() => SortBy("change")'>Change @SortIcon("change")</th>
+                            <th @onclick='() => SortBy("volume")'>Volume @SortIcon("volume")</th>
+                            <th @onclick='() => SortBy("cap")'>Market cap @SortIcon("cap")</th>
+                            <th>Profile</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in SortedMovers)
+                        {
+                            var changeClass = row.ChangePct >= 0 ? "text-success" : "text-danger";
+                            <tr @onmouseover='() => ShowTooltip($"{row.Name} leading liquidity vs open.")' @onmouseout="HideTooltip">
+                                <td class="fw-semibold">@row.Symbol <span class="text-muted small">@row.Name</span></td>
+                                <td>@row.Last.ToString("C", CultureInfo.CurrentCulture)</td>
+                                <td class="@changeClass">@row.ChangePct.ToString("+#0.0;-#0.0;0")%</td>
+                                <td>@row.Volume.ToString("N0", CultureInfo.CurrentCulture)</td>
+                                <td>@row.MarketCap.ToString("C0", CultureInfo.CurrentCulture)</td>
+                                <td>
+                                    <div class="range-bar">
+                                        <div class="range-fill" style="width:@row.RangeFill%"></div>
+                                    </div>
+                                    <div class="sparkline sparkline-compact">
+                                        @foreach (var point in row.Intraday)
+                                        {
+                                            <span class="spark-point" style="height:@Math.Clamp(point, 8, 100)%"></span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" @onclick="() => OpenIdea(row.Symbol)">Insight</button>
+                                        <button class="btn btn-outline-secondary" @onclick='() => ShowTooltip($"Order staging for {row.Symbol} is simulated.")'>Route</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3 d-flex flex-wrap gap-3 align-items-center">
+                <span class="badge bg-light text-dark">Levels favor @PivotText</span>
+                <span class="text-muted small">Tape overlay: @(ShowTapeOverlay ? "on" : "off")</span>
+                <div class="legend">
+                    <span class="legend-dot green"></span><span class="small text-muted">Up moves</span>
+                    <span class="legend-dot red"></span><span class="small text-muted">Down moves</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Auction</p>
+                            <h3 class="h6 mb-0">Opening playbook</h3>
+                        </div>
+                        <span class="badge bg-light text-dark">Floor</span>
+                    </div>
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var auction in Auctions)
+                        {
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold">@auction.Symbol</div>
+                                    <div class="text-muted small">@auction.Context</div>
+                                </div>
+                                <div class="auction-bar">
+                                    <div class="@($"auction-fill {auction.Side}")" style="width:@auction.Ratio%"></div>
+                                </div>
+                            </div>
+                            <div class="small text-muted">Imbalance @auction.Notional.ToString("C0", CultureInfo.CurrentCulture)</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Flows</p>
+                            <h3 class="h6 mb-0">Passive vs aggressive</h3>
+                        </div>
+                        <span class="badge bg-light text-dark">Desk blotter</span>
+                    </div>
+                    <div class="flow-matrix">
+                        @foreach (var flow in Flows)
+                        {
+                            <div>
+                                <div class="d-flex justify-content-between">
+                                    <span class="fw-semibold">@flow.Label</span>
+                                    <span class="small text-muted">Tape score @flow.Score.ToString("0.0")</span>
+                                </div>
+                                <div class="flow-bar">
+                                    <div class="flow-passive" style="width:@flow.Passive%"></div>
+                                    <div class="flow-aggressive" style="width:@flow.Aggressive%"></div>
+                                </div>
+                                <div class="small @(flow.Aggressive >= flow.Passive ? "text-success" : "text-muted")">@flow.Note</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Compliance</p>
+                            <h3 class="h6 mb-0">Halts and flags</h3>
+                        </div>
+                        <span class="badge bg-light text-dark">Live tape</span>
+                    </div>
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var halt in Halts)
+                        {
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <div class="fw-semibold">@halt.Symbol</div>
+                                    <div class="text-muted small">@halt.Reason</div>
+                                </div>
+                                <span class="@($"status-pill {halt.Status.ToLower()}")">@halt.Status</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-outline-primary btn-sm" @onclick='() => ShowTooltip("Halt feed is simulated.")'>Alert me</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ActiveTooltip))
+    {
+        <div class="floating-tooltip">
+            @ActiveTooltip
+        </div>
+    }
+
+    @if (ShowIdeaDialog)
+    {
+        <div class="modal-layer" @onclick="CloseDialogs">
+            <div class="modal-card" @onclick:stopPropagation="true">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="eyebrow mb-1">Playbook</p>
+                        <h3 class="h5 mb-0">Opening bell brief</h3>
+                    </div>
+                    <button class="btn-close" aria-label="Close" @onclick="CloseDialogs"></button>
+                </div>
+                <p class="text-muted mb-3">Session tuning: @SelectedSession · Focused on @(FocusedIdea?.Symbol ?? "floor majors").</p>
+                <div class="row g-3 mb-3">
+                    @foreach (var idea in IdeaDeck)
+                    {
+                        <div class="col-12 col-md-6">
+                            <div class="idea-card">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <div class="fw-semibold">@idea.Symbol</div>
+                                        <div class="text-muted small">@idea.Thesis</div>
+                                    </div>
+                                    <span class="badge bg-light text-dark">@idea.Horizon</span>
+                                </div>
+                                <p class="small mb-2">@idea.Trigger</p>
+                                <div class="d-flex gap-2 flex-wrap small">
+                                    <span class="pill">@idea.Levels</span>
+                                    <span class="pill">@idea.Liquidity</span>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="small text-muted">Notes and trade tickets are placeholders for now.</div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @onclick="CloseDialogs">Close</button>
+                        <button class="btn btn-primary" @onclick="CloseDialogs">Acknowledge</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private record Metric(string Label, string Value, string Context, string Subtitle, decimal Delta, string Tone, string Hint);
+
+    private record Pulse(string Label, string Value, decimal Delta, string Tooltip);
+
+    private record DepthLane(string Label, string Context, decimal Advance, decimal Decline);
+
+    private record MoverRow(string Symbol, string Name, decimal Last, decimal ChangePct, long Volume, decimal MarketCap, decimal Low, decimal High, IReadOnlyList<decimal> Intraday)
+    {
+        public decimal RangeFill => High == Low ? 0 : Math.Clamp((Last - Low) / (High - Low) * 100, 0, 100);
+    }
+
+    private record AuctionRow(string Symbol, string Context, decimal Notional, string Side, decimal Ratio);
+
+    private record FlowRow(string Label, decimal Passive, decimal Aggressive, string Note, decimal Score);
+
+    private record HaltRow(string Symbol, string Reason, string Status);
+
+    private record Idea(string Symbol, string Thesis, string Trigger, string Horizon, string Levels, string Liquidity);
+
+    private List<Metric> Metrics { get; } = new()
+    {
+        new("NYSE Composite", "16,328", "Cash", "Point-in-time composite print", 0.6m, "linear-gradient(90deg, #5aa9ff, #7ce7ac)", "Composite index pulled at the last refresh."),
+        new("Turnover", "$38.2B", "Notional", "Floor + electronic blended", 1.1m, "linear-gradient(90deg, #f6d365, #fda085)", "Est. session notional paced to close."),
+        new("Adv/Dec Ratio", "1.6x", "Breadth", "Volume-weighted", 0.4m, "linear-gradient(90deg, #7ce7ac, #5aa9ff)", "Advancers vs decliners by share volume."),
+        new("High/Low", "78 / 14", "Breakouts", "52-week prints", 1.9m, "linear-gradient(90deg, #9d8aff, #c1e3ff)", "New 52-week highs vs lows on the floor.")
+    };
+
+    private List<string> Sessions { get; } = new() { "Cash", "Pre-market", "Close prep" };
+
+    private string SelectedSession { get; set; } = "Cash";
+
+    private List<decimal> LiquiditySeries { get; } = new() { 24, 30, 42, 54, 63, 72, 78, 84, 80, 76, 82, 88 };
+
+    private List<decimal> LiquidityClose { get; } = new() { 14, 18, 22, 28, 38, 44, 56, 66, 78, 86, 90, 94 };
+
+    private IReadOnlyList<decimal> SelectedLiquidity => SelectedSession == "Close prep" ? LiquidityClose : LiquiditySeries;
+
+    private List<decimal> VolumeSeries { get; } = new() { 20, 24, 28, 35, 44, 48, 52, 58, 70, 76, 82, 90 };
+
+    private List<Pulse> TapePulse { get; } = new()
+    {
+        new("VWAP drift", "+0.18", 0.05m, "Distance from VWAP vs open print."),
+        new("Block ratio", "1.3x", 0.2m, "Blocks / total prints, rolling 30m."),
+        new("Quote depth", "8.4", -0.3m, "Layers of book depth on top venues."),
+        new("Spread", "7.2 bps", -0.1m, "Composite spread across majors.")
+    };
+
+    private decimal AdvancePct => 62m;
+
+    private decimal DeclinePct => 38m;
+
+    private int AdvanceCount => 1420;
+
+    private int DeclineCount => 870;
+
+    private List<DepthLane> DepthLanes { get; } = new()
+    {
+        new("Mega / dividend", "Low vol", 78m, 22m),
+        new("Growth tilt", "Beta 1.2+", 54m, 46m),
+        new("Cyclicals", "Energy + industrial", 48m, 52m),
+        new("Financials", "Banks & brokers", 66m, 34m)
+    };
+
+    private List<MoverRow> Movers { get; } = new()
+    {
+        new("JPM", "JPMorgan Chase", 151.20m, 1.2m, 18240000, 440_000_000_000m, 148.50m, 151.90m, new decimal[] { 42, 48, 56, 60, 68, 74, 80 }),
+        new("CAT", "Caterpillar", 274.30m, 0.9m, 6200000, 140_000_000_000m, 268.80m, 275.40m, new decimal[] { 32, 34, 38, 44, 52, 64, 72 }),
+        new("CVX", "Chevron", 152.24m, -0.7m, 8100000, 286_000_000_000m, 150.10m, 154.80m, new decimal[] { 68, 64, 62, 58, 56, 55, 57 }),
+        new("T", "AT&T", 16.22m, 1.6m, 38420000, 116_000_000_000m, 15.90m, 16.28m, new decimal[] { 30, 36, 40, 44, 48, 54, 58 }),
+        new("UNH", "UnitedHealth", 508.10m, -0.4m, 3800000, 471_000_000_000m, 504.50m, 510.90m, new decimal[] { 52, 50, 49, 47, 48, 50, 52 }),
+        new("BAC", "Bank of America", 32.88m, 0.8m, 51220000, 262_000_000_000m, 32.10m, 33.02m, new decimal[] { 24, 30, 42, 50, 56, 60, 66 })
+    };
+
+    private string SortColumn { get; set; } = "change";
+
+    private bool SortAscending { get; set; }
+
+    private IEnumerable<MoverRow> SortedMovers => SortColumn switch
+    {
+        "symbol" => SortAscending ? Movers.OrderBy(m => m.Symbol) : Movers.OrderByDescending(m => m.Symbol),
+        "last" => SortAscending ? Movers.OrderBy(m => m.Last) : Movers.OrderByDescending(m => m.Last),
+        "volume" => SortAscending ? Movers.OrderBy(m => m.Volume) : Movers.OrderByDescending(m => m.Volume),
+        "cap" => SortAscending ? Movers.OrderBy(m => m.MarketCap) : Movers.OrderByDescending(m => m.MarketCap),
+        _ => SortAscending ? Movers.OrderBy(m => m.ChangePct) : Movers.OrderByDescending(m => m.ChangePct)
+    };
+
+    private List<AuctionRow> Auctions { get; } = new()
+    {
+        new("PFE", "Buy imbalance", 32000000m, "buy", 64m),
+        new("KO", "Sell imbalance", 21800000m, "sell", 48m),
+        new("MCD", "Paired off", 12400000m, "neutral", 32m)
+    };
+
+    private List<FlowRow> Flows { get; } = new()
+    {
+        new("Staples", 36m, 64m, "Aggressive buying into close", 7.2m),
+        new("Industrials", 58m, 42m, "Passive accumulation", 6.1m),
+        new("Tech services", 44m, 56m, "Mixed, skew to buyers", 6.8m)
+    };
+
+    private List<HaltRow> Halts { get; } = new()
+    {
+        new("FHN", "LULD - volatility", "Active"),
+        new("UAL", "News pending", "Cleared"),
+        new("W", "Price discovery", "Monitoring")
+    };
+
+    private List<Idea> IdeaDeck { get; } = new()
+    {
+        new("JPM", "Financials leading breadth", "Lean into VWAP drift if blocks persist", "Day", "VWAP ±0.35%", "Size in two tranches"),
+        new("CAT", "Heavy equipment momentum", "Follow-through if order book stays bid", "Day", "274.50 / 272.00", "Use dark pool routing"),
+        new("BAC", "Banks pacing higher", "Add on dips toward open print", "Swing", "33.10 target", "Keep below 40% ADV")
+    };
+
+    private string? ActiveTooltip { get; set; }
+
+    private bool ShowTapeOverlay { get; set; } = true;
+
+    private bool ShowIdeaDialog { get; set; }
+
+    private Idea? FocusedIdea => IdeaDeck.FirstOrDefault(i => i.Symbol == FocusedTicker);
+
+    private string? FocusedTicker { get; set; }
+
+    private string PivotText => AdvancePct >= DeclinePct ? "buyers" : "sellers";
+
+    private void SetSession(string session)
+    {
+        SelectedSession = session;
+    }
+
+    private void SortBy(string column)
+    {
+        if (SortColumn == column)
+        {
+            SortAscending = !SortAscending;
+        }
+        else
+        {
+            SortColumn = column;
+            SortAscending = column == "symbol"; // default alphabetical asc
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (SortColumn != column)
+        {
+            return new MarkupString("<span class='sort-icon'>⇅</span>");
+        }
+
+        var icon = SortAscending ? "↑" : "↓";
+        return new MarkupString($"<span class='sort-icon active'>{icon}</span>");
+    }
+
+    private void OpenIdea(string symbol)
+    {
+        FocusedTicker = symbol;
+        ShowIdeaDialog = true;
+    }
+
+    private void OpenIdeaBoard()
+    {
+        FocusedTicker = null;
+        ShowIdeaDialog = true;
+    }
+
+    private void CloseDialogs()
+    {
+        ShowIdeaDialog = false;
+    }
+
+    private void ToggleTapeOverlay() => ShowTapeOverlay = !ShowTapeOverlay;
+
+    private void ShowTooltip(string text) => ActiveTooltip = text;
+
+    private void HideTooltip() => ActiveTooltip = null;
+
+    private void CopySession() => ActiveTooltip = "Snapshot copied (demo).";
+
+    private string BuildLinePoints(IReadOnlyList<decimal> series)
+    {
+        if (series.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var max = series.Max();
+        var min = series.Min();
+        var range = (double)(max - min == 0 ? 1 : max - min);
+        var step = 100.0 / Math.Max(series.Count - 1, 1);
+
+        return string.Join(" ", series.Select((value, index) =>
+        {
+            var x = index * step;
+            var scaled = (double)(value - min) / range;
+            var y = 90 - scaled * 70;
+            return $"{x.ToString("0.##", CultureInfo.InvariantCulture)},{y.ToString("0.##", CultureInfo.InvariantCulture)}";
+        }));
+    }
+
+    private string BuildAreaPoints(IReadOnlyList<decimal> series)
+    {
+        if (series.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        var linePoints = BuildLinePoints(series).Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        linePoints.Add("100,100");
+        linePoints.Add("0,100");
+        return string.Join(" ", linePoints);
+    }
+
+    private string GetLastPointY(IReadOnlyList<decimal> series)
+    {
+        var points = BuildLinePoints(series).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (points.Length == 0)
+        {
+            return "90";
+        }
+
+        var last = points.Last();
+        var parts = last.Split(',');
+        return parts.Length == 2 ? parts[1] : "90";
+    }
+}

@@ -1,0 +1,318 @@
+.nyse .eyebrow {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: #5c6f82;
+}
+
+.nyse .card {
+    border: 1px solid #e7ecf3;
+    border-radius: 16px;
+}
+
+.nyse .metric-card {
+    background: linear-gradient(180deg, #f9fbff, #ffffff);
+}
+
+.nyse .tone {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.nyse .chip {
+    border: 1px solid #d9e0eb;
+    background: #f7f9fc;
+    color: #334155;
+    border-radius: 24px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.9rem;
+}
+
+.nyse .chip-active {
+    background: linear-gradient(90deg, #2c6bff, #22c55e);
+    color: #0b1e38;
+    border-color: transparent;
+}
+
+.nyse .intraday-chart {
+    position: relative;
+    background: linear-gradient(180deg, #0f172a, #0b1224);
+    border-radius: 14px;
+    padding: 1rem;
+    overflow: hidden;
+    min-height: 220px;
+}
+
+.nyse .chart-canvas {
+    width: 100%;
+    height: 180px;
+}
+
+.nyse .chart-canvas .area {
+    fill: rgba(124, 231, 172, 0.18);
+}
+
+.nyse .chart-canvas .line {
+    fill: none;
+    stroke: #7ce7ac;
+    stroke-width: 1.5;
+}
+
+.nyse .chart-canvas .focus-dot {
+    fill: #2c6bff;
+    stroke: #fff;
+    stroke-width: 0.4;
+}
+
+.nyse .chart-bars {
+    position: absolute;
+    inset: auto 1rem 1rem 1rem;
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 6px;
+    align-items: end;
+    height: 56px;
+}
+
+.nyse .chart-bars .bar {
+    background: linear-gradient(180deg, #9d8aff, #c1e3ff);
+    border-radius: 6px 6px 2px 2px;
+    min-height: 8px;
+}
+
+.nyse .mini-stat {
+    min-width: 140px;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid #e0e6f2;
+    border-radius: 12px;
+    background: #f7f9fc;
+}
+
+.nyse .breadth-bar {
+    display: flex;
+    height: 14px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #eef2f8;
+}
+
+.nyse .breadth-adv {
+    background: linear-gradient(90deg, #22c55e, #7ce7ac);
+}
+
+.nyse .breadth-dec {
+    background: linear-gradient(90deg, #ff9a9e, #fecfef);
+}
+
+.nyse .depth-grid {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.nyse .depth-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.nyse .depth-bars {
+    display: flex;
+    gap: 6px;
+    width: 180px;
+}
+
+.nyse .depth-fill {
+    height: 8px;
+    border-radius: 8px;
+}
+
+.nyse .depth-fill.adv {
+    background: #22c55e;
+}
+
+.nyse .depth-fill.dec {
+    background: #ef4444;
+}
+
+.nyse .nyse-table th {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+    user-select: none;
+}
+
+.nyse .range-bar {
+    background: #eef2f8;
+    border-radius: 999px;
+    height: 6px;
+    overflow: hidden;
+    margin-bottom: 0.3rem;
+}
+
+.nyse .range-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #2c6bff, #22c55e);
+}
+
+.nyse .sparkline-compact {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 42px;
+}
+
+.nyse .spark-point {
+    display: block;
+    width: 8px;
+    min-width: 6px;
+    border-radius: 8px 8px 2px 2px;
+    background: linear-gradient(180deg, #5aa9ff, #7ce7ac);
+}
+
+.nyse .legend {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.nyse .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.nyse .legend-dot.green {
+    background: #22c55e;
+}
+
+.nyse .legend-dot.red {
+    background: #ef4444;
+}
+
+.nyse .auction-bar {
+    width: 120px;
+    background: #eef2f8;
+    border-radius: 12px;
+    overflow: hidden;
+    height: 12px;
+}
+
+.nyse .auction-fill {
+    height: 100%;
+}
+
+.nyse .auction-fill.buy {
+    background: linear-gradient(90deg, #22c55e, #7ce7ac);
+}
+
+.nyse .auction-fill.sell {
+    background: linear-gradient(90deg, #ff9a9e, #fecfef);
+}
+
+.nyse .auction-fill.neutral {
+    background: linear-gradient(90deg, #5aa9ff, #7ce7ac);
+}
+
+.nyse .flow-matrix .flow-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0.35rem 0;
+    background: #eef2f8;
+}
+
+.nyse .flow-passive {
+    background: #9d8aff;
+}
+
+.nyse .flow-aggressive {
+    background: #22c55e;
+}
+
+.nyse .status-pill {
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    border: 1px solid #e0e6f2;
+}
+
+.nyse .status-pill.active {
+    background: #fff2f0;
+    color: #b91c1c;
+}
+
+.nyse .status-pill.cleared {
+    background: #f0fdf4;
+    color: #15803d;
+}
+
+.nyse .status-pill.monitoring {
+    background: #f8fafc;
+    color: #0f172a;
+}
+
+.nyse .floating-tooltip {
+    position: fixed;
+    right: 1.2rem;
+    bottom: 1.2rem;
+    background: #0b1e38;
+    color: #fff;
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    box-shadow: 0 12px 30px rgba(12, 21, 46, 0.28);
+    max-width: 320px;
+    z-index: 1020;
+    font-size: 0.95rem;
+}
+
+.nyse .sort-icon {
+    color: #94a3b8;
+    margin-left: 0.4rem;
+}
+
+.nyse .sort-icon.active {
+    color: #0f172a;
+    font-weight: 700;
+}
+
+.nyse .modal-layer {
+    position: fixed;
+    inset: 0;
+    background: rgba(9, 12, 22, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    padding: 1rem;
+}
+
+.nyse .modal-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.2rem 1.4rem;
+    width: min(900px, 100%);
+    box-shadow: 0 20px 40px rgba(12, 21, 46, 0.18);
+}
+
+.nyse .idea-card {
+    border: 1px solid #e6eaf0;
+    border-radius: 12px;
+    padding: 0.9rem 1rem;
+    background: #f8fafc;
+}
+
+.nyse .pill {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    background: #eef2f8;
+    border: 1px solid #e0e6f2;
+    font-size: 0.85rem;
+    color: #334155;
+}
