@@ -1,0 +1,217 @@
+.stock-dashboard .eyebrow {
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    color: #5c6f82;
+}
+
+.stock-dashboard .metric-card .progress,
+.stock-dashboard .progress-thin {
+    height: 6px;
+    background: #eef2f8;
+    border-radius: 999px;
+}
+
+.stock-dashboard .metric-card .progress-bar {
+    border-radius: 999px;
+}
+
+.stock-dashboard .progress-bar.bg-success {
+    background: linear-gradient(90deg, #5aa9ff, #7ce7ac);
+}
+
+.stock-dashboard .progress-bar.bg-danger {
+    background: linear-gradient(90deg, #ff9a9e, #fecfef);
+}
+
+.stock-dashboard .mini-card {
+    border: 1px solid #e6eaf0;
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    min-width: 140px;
+}
+
+.stock-dashboard .card {
+    border: 1px solid #e7ecf3;
+    border-radius: 14px;
+}
+
+.stock-dashboard .table > :not(caption) > * > * {
+    padding-top: 0.8rem;
+    padding-bottom: 0.8rem;
+}
+
+.stock-dashboard .badge {
+    font-weight: 600;
+}
+
+.stock-dashboard .chip-set {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.stock-dashboard .chip {
+    border: 1px solid #d9e0eb;
+    background: #f7f9fc;
+    color: #334155;
+    border-radius: 24px;
+    padding: 0.3rem 0.9rem;
+    font-size: 0.9rem;
+}
+
+.stock-dashboard .chip-active {
+    background: linear-gradient(90deg, #5aa9ff, #7ce7ac);
+    color: #0b1e38;
+    border-color: transparent;
+}
+
+.stock-dashboard .sparkline {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 64px;
+    background: linear-gradient(180deg, rgba(90, 169, 255, 0.08), rgba(124, 231, 172, 0.04));
+    border-radius: 12px;
+    padding: 8px 10px;
+}
+
+.stock-dashboard .sparkline-small {
+    height: 48px;
+    padding: 6px 8px;
+}
+
+.stock-dashboard .sparkline-modal {
+    height: 80px;
+}
+
+.stock-dashboard .spark-point {
+    display: block;
+    width: 10px;
+    min-width: 6px;
+    border-radius: 8px 8px 2px 2px;
+    background: linear-gradient(180deg, #5aa9ff, #7ce7ac);
+}
+
+.stock-dashboard .spark-area {
+    background: #f7f9fc;
+    border: 1px solid #e7ecf3;
+    border-radius: 12px;
+    padding: 12px;
+}
+
+.stock-dashboard .spark-area .spark-line {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 120px;
+}
+
+.stock-dashboard .spark-line-point {
+    flex: 1;
+    min-width: 8px;
+    border-radius: 8px 8px 2px 2px;
+    background: linear-gradient(180deg, #5aa9ff, #7ce7ac);
+}
+
+.stock-dashboard .spark-volume {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 38px;
+    margin-top: 10px;
+}
+
+.stock-dashboard .spark-volume-bar {
+    flex: 1;
+    min-width: 8px;
+    border-radius: 6px 6px 2px 2px;
+    background: linear-gradient(180deg, #9d8aff, #c1e3ff);
+}
+
+.stock-dashboard .flow-bars {
+    border-top: 1px dashed #e5e9f0;
+    margin-top: 1rem;
+    padding-top: 1rem;
+    display: grid;
+    gap: 0.75rem;
+}
+
+.stock-dashboard .flow-row .flow-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0.35rem 0;
+}
+
+.stock-dashboard .flow-row .flow-buy,
+.stock-dashboard .flow-row .flow-sell {
+    height: 8px;
+    border-radius: 8px;
+}
+
+.stock-dashboard .flow-row .flow-buy {
+    background: linear-gradient(90deg, #5aa9ff, #7ce7ac);
+}
+
+.stock-dashboard .flow-row .flow-sell {
+    background: linear-gradient(90deg, #ff9a9e, #fecfef);
+}
+
+.stock-dashboard .heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.6rem;
+}
+
+.stock-dashboard .heatmap-cell {
+    width: 100%;
+    border: 1px solid #e4e9f2;
+    border-radius: 12px;
+    padding: 0.75rem;
+    background: linear-gradient(135deg, rgba(92, 111, 130, 0.08), rgba(92, 111, 130, 0.02));
+    text-align: left;
+    color: #0b1e38;
+    cursor: pointer;
+}
+
+.stock-dashboard .heatmap-cell.gain {
+    background: linear-gradient(135deg, rgba(124, 231, 172, 0.18), rgba(92, 111, 130, 0.02));
+}
+
+.stock-dashboard .heatmap-cell.loss {
+    background: linear-gradient(135deg, rgba(255, 154, 158, 0.18), rgba(92, 111, 130, 0.02));
+}
+
+.stock-dashboard .heatmap-cell:focus {
+    outline: 2px solid #5aa9ff;
+}
+
+.stock-dashboard .modal-layer {
+    position: fixed;
+    inset: 0;
+    background: rgba(9, 12, 22, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    padding: 1rem;
+}
+
+.stock-dashboard .modal-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 1.2rem 1.4rem;
+    width: min(780px, 100%);
+    box-shadow: 0 20px 40px rgba(12, 21, 46, 0.18);
+}
+
+.stock-dashboard .pill {
+    display: inline-flex;
+    border-radius: 999px;
+    padding: 0.35rem 0.85rem;
+    background: #f1f4fa;
+    border: 1px solid #e0e6f2;
+    font-size: 0.9rem;
+    color: #4b5563;
+}

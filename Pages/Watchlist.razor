@@ -1,0 +1,77 @@
+@page "/watchlist"
+@using System.Globalization
+
+<PageTitle>Watchlist</PageTitle>
+
+<section class="watchlist">
+    <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+        <div>
+            <p class="eyebrow mb-1">Market radar</p>
+            <h1 class="h3 mb-0">Watchlist</h1>
+            <p class="text-muted mb-0">Track price, volume, and intraday moves for symbols you care about.</p>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-secondary">Import</button>
+            <button class="btn btn-primary">Add symbol</button>
+        </div>
+    </header>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0 watchlist-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ticker</th>
+                        <th>Company</th>
+                        <th>Price</th>
+                        <th>Change</th>
+                        <th>Day Range</th>
+                        <th>Volume</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var stock in Symbols)
+                    {
+                        var changeClass = stock.ChangePct >= 0 ? "text-success" : "text-danger";
+                        <tr>
+                            <td class="fw-semibold">@stock.Ticker</td>
+                            <td>@stock.Name</td>
+                            <td>@stock.Price.ToString("C", CultureInfo.CurrentCulture)</td>
+                            <td class="@changeClass">@stock.ChangePct.ToString("+#0.0;-#0.0;0")%</td>
+                            <td>
+                                <div class="range-bar">
+                                    <div class="range-fill" style="width:@stock.RangeFill%"></div>
+                                </div>
+                                <div class="small text-muted">@stock.Low.ToString("C0") - @stock.High.ToString("C0")</div>
+                            </td>
+                            <td>@stock.Volume.ToString("N0", CultureInfo.CurrentCulture)</td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a class="btn btn-outline-primary" href="/trade?ticker=@stock.Ticker">Trade</a>
+                                    <button class="btn btn-outline-secondary">Alert</button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+@code {
+    private record SymbolRow(string Ticker, string Name, decimal Price, decimal ChangePct, decimal Low, decimal High, decimal Volume)
+    {
+        public decimal RangeFill => High == Low ? 0 : Math.Clamp((Price - Low) / (High - Low) * 100, 0, 100);
+    }
+
+    private List<SymbolRow> Symbols { get; } = new()
+    {
+        new("AAPL", "Apple Inc.", 185.22m, 0.8m, 183.10m, 186.40m, 68420000),
+        new("MSFT", "Microsoft Corp.", 330.10m, -0.3m, 328.00m, 333.50m, 39210000),
+        new("AMZN", "Amazon.com", 142.33m, 1.1m, 140.20m, 143.10m, 52230000),
+        new("NVDA", "NVIDIA Corp.", 450.76m, 2.3m, 442.00m, 452.10m, 38990000),
+        new("TSLA", "Tesla, Inc.", 240.10m, -1.5m, 238.20m, 245.00m, 71220000)
+    };
+}

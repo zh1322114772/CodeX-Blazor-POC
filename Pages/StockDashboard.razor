@@ -1,0 +1,650 @@
+@page "/stocks"
+@using System.Globalization
+@using System.Linq
+
+<PageTitle>Stock Dashboard</PageTitle>
+
+<section class="stock-dashboard">
+    <header class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <p class="eyebrow mb-1">Market pulse</p>
+            <h1 class="h3 mb-1">Stock dashboard</h1>
+            <p class="text-muted mb-0">Snapshot of index moves, sector tilt, and open positions.</p>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <div class="chip-set">
+                @foreach (var range in Ranges)
+                {
+                    <button class="@($"chip {(SelectedRange == range ? "chip-active" : "")}")" @onclick="() => SelectRange(range)">@range</button>
+                }
+            </div>
+            <small class="text-muted">Updated @LastRefreshed.ToString("t")</small>
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-secondary" @onclick="RefreshNow">Refresh</button>
+                <button class="btn btn-primary" @onclick="OpenOrder">New order</button>
+            </div>
+        </div>
+    </header>
+
+    <div class="row g-3 mb-4">
+        @foreach (var index in Indices)
+        {
+            var changeClass = index.ChangePct >= 0 ? "text-success" : "text-danger";
+            <div class="col-12 col-md-4">
+                <div class="card shadow-sm h-100 metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <p class="eyebrow mb-1">@index.Name</p>
+                                <h3 class="h4 mb-0">@index.Level.ToString("N2")</h3>
+                            </div>
+                            <span class="badge bg-light text-dark">@index.Session</span>
+                        </div>
+                        <div class="mt-3">
+                            <div class="d-flex justify-content-between small text-muted">
+                                <span>Change</span>
+                                <span class="@changeClass">@index.ChangePct.ToString("+#0.0;-#0.0;0")%</span>
+                            </div>
+                            <div class="progress progress-thin mt-2">
+                                <div class="progress-bar @changeClass" style="width:@Math.Clamp(index.ChangePct * 5 + 50, 5, 95)%"></div>
+                            </div>
+                            <div class="sparkline mt-3">
+                                @foreach (var point in index.Trend)
+                                {
+                                    <span class="spark-point" style="height:@Math.Clamp(point, 8, 100)%"></span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-12 col-xl-8">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Portfolio</p>
+                            <h3 class="h4 mb-0">@PortfolioValue.ToString("C0", CultureInfo.CurrentCulture)</h3>
+                            <p class="mb-0 @(DayPnl >= 0 ? "text-success" : "text-danger")">
+                                @DayPnl.ToString("+#,0;-#,0;0", CultureInfo.CurrentCulture) today
+                            </p>
+                        </div>
+                        <div class="text-end">
+                            <p class="text-muted small mb-1">Cash</p>
+                            <h5 class="mb-0">@Cash.ToString("C0", CultureInfo.CurrentCulture)</h5>
+                            <p class="text-muted small mb-0">Win rate @WinRate.ToString("0")%</p>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 mb-4">
+                        @foreach (var stat in Stats)
+                        {
+                            <div class="mini-card">
+                                <p class="text-muted small mb-1">@stat.Label</p>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <span class="fw-semibold">@stat.Value</span>
+                                    <span class="@(stat.Change >= 0 ? "text-success" : "text-danger") small">@stat.Change.ToString("+#0.0;-#0.0;0")%</span>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="d-flex flex-wrap gap-3 align-items-center mb-3">
+                        <h6 class="mb-0">Equity curve</h6>
+                        <span class="badge @((SelectedReturnPct >= 0) ? "bg-success text-white" : "bg-danger text-white")">
+                            @SelectedReturnPct.ToString("+#0.0;-#0.0;0")% @SelectedRange
+                        </span>
+                    </div>
+                    <div class="spark-area mb-3">
+                        <div class="spark-line">
+                            @foreach (var value in SelectedSeries)
+                            {
+                                <div class="spark-line-point" style="height:@Math.Clamp(value, 8, 100)%"></div>
+                            }
+                        </div>
+                        <div class="spark-volume">
+                            @foreach (var volume in VolumeSeries)
+                            {
+                                <div class="spark-volume-bar" style="height:@Math.Clamp(volume, 8, 100)%"></div>
+                            }
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted mb-2">
+                        <span>Realized P/L</span>
+                        <span>@RealizedPnl.ToString("C0", CultureInfo.CurrentCulture)</span>
+                    </div>
+                    <div class="d-flex justify-content-between small text-muted">
+                        <span>Drawdown</span>
+                        <span>@Drawdown.ToString("0.0")%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-xl-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Sector tilt</p>
+                            <h3 class="h6 mb-0">Weight</h3>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button class="btn btn-outline-secondary btn-sm" @onclick="OpenRebalance">Rebalance</button>
+                            <span class="badge bg-light text-dark">@Positions.Count position(s)</span>
+                        </div>
+                    </div>
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var slice in Sectors)
+                        {
+                            <div>
+                                <div class="d-flex justify-content-between small">
+                                    <span>@slice.Name</span>
+                                    <span class="text-muted">@slice.Weight.ToString("0.0")%</span>
+                                </div>
+                                <div class="progress progress-thin mt-2">
+                                    <div class="progress-bar" style="width:@slice.Weight%; background:@slice.Color"></div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-3">
+                <div>
+                    <p class="eyebrow mb-1">Positions</p>
+                    <h2 class="h5 mb-0">Open exposure</h2>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary btn-sm">Export</button>
+                    <button class="btn btn-primary btn-sm" @onclick="OpenRebalance">Allocate cash</button>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Symbol</th>
+                            <th>Company</th>
+                            <th>Last</th>
+                            <th>Change</th>
+                            <th>Day P/L</th>
+                            <th>Value</th>
+                            <th>Weight</th>
+                            <th>Trend</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var position in Positions)
+                        {
+                            var changeClass = position.ChangePct >= 0 ? "text-success" : "text-danger";
+                            var pnlClass = position.DayPnl >= 0 ? "text-success" : "text-danger";
+                            <tr>
+                                <td class="fw-semibold">@position.Ticker</td>
+                                <td>@position.Name</td>
+                                <td>@position.Last.ToString("C", CultureInfo.CurrentCulture)</td>
+                                <td class="@changeClass">@position.ChangePct.ToString("+#0.0;-#0.0;0")%</td>
+                                <td class="@pnlClass">@position.DayPnl.ToString("+#,0;-#,0;0", CultureInfo.CurrentCulture)</td>
+                                <td>@position.Value.ToString("C0", CultureInfo.CurrentCulture)</td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1 progress-thin">
+                                            <div class="progress-bar" style="width:@position.Weight%;"></div>
+                                        </div>
+                                        <span class="small text-muted">@position.Weight.ToString("0.0")%</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="sparkline sparkline-small">
+                                        @foreach (var point in position.Trend)
+                                        {
+                                            <span class="spark-point" style="height:@Math.Clamp(point, 8, 100)%"></span>
+                                        }
+                                    </div>
+                                </td>
+                                <td class="text-end">
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" @onclick="() => OpenPosition(position)">Details</button>
+                                        <button class="btn btn-outline-secondary">Trade</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="flow-bars mt-3">
+                @foreach (var flow in Flows)
+                {
+                    var net = flow.Buy - flow.Sell;
+                    <div class="flow-row">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="fw-semibold">@flow.Label</div>
+                            <div class="small text-muted">Buy @flow.Buy.ToString("0.0")% · Sell @flow.Sell.ToString("0.0")%</div>
+                        </div>
+                        <div class="flow-bar">
+                            <div class="flow-buy" style="width:@Math.Clamp(flow.Buy, 5, 95)%"></div>
+                            <div class="flow-sell" style="width:@Math.Clamp(flow.Sell, 5, 95)%"></div>
+                        </div>
+                        <div class="small @(net >= 0 ? "text-success" : "text-danger")">Net @net.ToString("+#0.0;-#0.0;0")%</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Gainers</p>
+                            <h3 class="h6 mb-0">Leaders by move</h3>
+                        </div>
+                        <span class="badge bg-light text-dark">Volume focus</span>
+                    </div>
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var move in Gainers)
+                        {
+                            var changeClass = move.ChangePct >= 0 ? "text-success" : "text-danger";
+                            <div class="d-flex justify-content-between gap-3 align-items-center">
+                                <div>
+                                    <div class="fw-semibold">@move.Ticker</div>
+                                    <div class="text-muted small">@move.Name</div>
+                                </div>
+                                <div class="text-end">
+                                    <div>@move.Price.ToString("C", CultureInfo.CurrentCulture)</div>
+                                    <div class="small @changeClass">@move.ChangePct.ToString("+#0.0;-#0.0;0")%</div>
+                                </div>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-success" style="width:@Math.Clamp(move.ChangePct * 4 + 60, 20, 95)%"></div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1 text-danger">Losers</p>
+                            <h3 class="h6 mb-0">Pressured names</h3>
+                        </div>
+                        <span class="badge bg-light text-dark">Bearish tape</span>
+                    </div>
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var move in Losers)
+                        {
+                            var changeClass = move.ChangePct >= 0 ? "text-success" : "text-danger";
+                            <div class="d-flex justify-content-between gap-3 align-items-center">
+                                <div>
+                                    <div class="fw-semibold">@move.Ticker</div>
+                                    <div class="text-muted small">@move.Name</div>
+                                </div>
+                                <div class="text-end">
+                                    <div>@move.Price.ToString("C", CultureInfo.CurrentCulture)</div>
+                                    <div class="small @changeClass">@move.ChangePct.ToString("+#0.0;-#0.0;0")%</div>
+                                </div>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-danger" style="width:@Math.Clamp(Math.Abs(move.ChangePct) * 8, 10, 95)%"></div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <p class="eyebrow mb-1">Heatmap</p>
+                            <h3 class="h6 mb-0">Intraday breadth</h3>
+                        </div>
+                        <span class="badge bg-light text-dark">Tap a cell</span>
+                    </div>
+                    <div class="heatmap-grid">
+                        @foreach (var cell in Heatmap)
+                        {
+                            var moveClass = cell.MovePct >= 0 ? "gain" : "loss";
+                            <button class="@($"heatmap-cell {moveClass}")" @onclick="() => ActiveTicker = cell.Ticker">
+                                <div class="fw-semibold">@cell.Ticker</div>
+                                <div class="small @((cell.MovePct >= 0) ? "text-success" : "text-danger")">
+                                    @cell.MovePct.ToString("+#0.0;-#0.0;0")%
+                                </div>
+                            </button>
+                        }
+                    </div>
+                    <div class="small text-muted mt-2">Selected: <span class="fw-semibold">@ActiveTicker</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (ShowOrderDialog)
+    {
+        <div class="modal-layer" @onclick="CloseDialogs">
+            <div class="modal-card" @onclick:stopPropagation="true">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="eyebrow mb-1">Order ticket</p>
+                        <h3 class="h5 mb-0">Send to market</h3>
+                    </div>
+                    <button class="btn-close" aria-label="Close" @onclick="CloseDialogs"></button>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted">Symbol</label>
+                        <input class="form-control" @bind="OrderTicker" />
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted">Side</label>
+                        <div class="btn-group w-100">
+                            <button class="@($"btn btn-sm btn-outline-primary {(OrderSide == "Buy" ? "active" : "")}")" @onclick="SetBuySide">Buy</button>
+                            <button class="@($"btn btn-sm btn-outline-secondary {(OrderSide == "Sell" ? "active" : "")}")" @onclick="SetSellSide">Sell</button>
+                        </div>
+                    </div>
+                    <div class="col-12 col-md-4">
+                        <label class="form-label small text-muted">Limit</label>
+                        <input type="number" class="form-control" step="0.01" @bind="OrderLimit" />
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted">Quantity</label>
+                        <input type="number" class="form-control" step="10" @bind="OrderQty" />
+                        <div class="small text-muted mt-1">Est. notional @((OrderQty * OrderLimit).ToString("C0", CultureInfo.CurrentCulture))</div>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted">Routing</label>
+                        <select class="form-select">
+                            <option>Smart</option>
+                            <option>Midpoint</option>
+                            <option>Close target</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div class="small text-muted">Review and confirm before sending.</div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @onclick="CloseDialogs">Cancel</button>
+                        <button class="btn btn-primary">Submit order</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (ShowRebalanceDialog)
+    {
+        <div class="modal-layer" @onclick="CloseDialogs">
+            <div class="modal-card" @onclick:stopPropagation="true">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="eyebrow mb-1">Allocator</p>
+                        <h3 class="h5 mb-0">Rebalance and deploy</h3>
+                    </div>
+                    <button class="btn-close" aria-label="Close" @onclick="CloseDialogs"></button>
+                </div>
+                <div class="row g-3">
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted">Preset</label>
+                        <select class="form-select" @bind="RebalancePreset">
+                            <option>Equal weight</option>
+                            <option>Quality tilt</option>
+                            <option>Low vol</option>
+                            <option>Momentum</option>
+                        </select>
+                    </div>
+                    <div class="col-12 col-md-6">
+                        <label class="form-label small text-muted">Cash to allocate</label>
+                        <input type="number" class="form-control" step="1000" @bind="CashToDeploy" />
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label small text-muted">Guardrails</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="pill">Max weight 8%</span>
+                            <span class="pill">Sector cap 25%</span>
+                            <span class="pill">Beta 0.9 - 1.1</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-4">
+                    <div class="small text-muted">Preview targets before posting trades.</div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-outline-secondary" @onclick="CloseDialogs">Close</button>
+                        <button class="btn btn-primary">Build plan</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (ShowPositionDialog && ActivePosition is not null)
+    {
+        <div class="modal-layer" @onclick="CloseDialogs">
+            <div class="modal-card" @onclick:stopPropagation="true">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <p class="eyebrow mb-1">Position</p>
+                        <h3 class="h5 mb-0">@ActivePosition!.Ticker · @ActivePosition!.Name</h3>
+                    </div>
+                    <button class="btn-close" aria-label="Close" @onclick="CloseDialogs"></button>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-6 col-md-3">
+                        <p class="text-muted small mb-1">Last</p>
+                        <div class="fw-semibold">@ActivePosition.Last.ToString("C", CultureInfo.CurrentCulture)</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <p class="text-muted small mb-1">Day P/L</p>
+                        <div class="@(ActivePosition.DayPnl >= 0 ? "text-success" : "text-danger") fw-semibold">
+                            @ActivePosition.DayPnl.ToString("+#,0;-#,0;0", CultureInfo.CurrentCulture)
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <p class="text-muted small mb-1">Weight</p>
+                        <div class="fw-semibold">@ActivePosition.Weight.ToString("0.0")%</div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <p class="text-muted small mb-1">Value</p>
+                        <div class="fw-semibold">@ActivePosition.Value.ToString("C0", CultureInfo.CurrentCulture)</div>
+                    </div>
+                </div>
+                <div class="sparkline sparkline-modal mb-3">
+                    @foreach (var point in ActivePosition.Trend)
+                    {
+                        <span class="spark-point" style="height:@Math.Clamp(point, 8, 100)%"></span>
+                    }
+                </div>
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-outline-primary btn-sm">Trade</button>
+                        <button class="btn btn-outline-secondary btn-sm">Set alert</button>
+                        <button class="btn btn-outline-secondary btn-sm">Notes</button>
+                    </div>
+                    <button class="btn btn-link text-muted btn-sm" @onclick="CloseDialogs">Close</button>
+                </div>
+            </div>
+        </div>
+    }
+</section>
+
+@code {
+    private record MarketIndex(string Name, decimal Level, decimal ChangePct, string Session, IReadOnlyList<decimal> Trend);
+
+    private record Stat(string Label, string Value, decimal Change);
+
+    private record SectorSlice(string Name, decimal Weight, string Color);
+
+    private record Position(string Ticker, string Name, decimal Last, decimal ChangePct, decimal DayPnl, decimal Value, decimal Weight, IReadOnlyList<decimal> Trend);
+
+    private record Move(string Ticker, string Name, decimal Price, decimal ChangePct);
+
+    private record FlowRow(string Label, decimal Buy, decimal Sell);
+
+    private record HeatCell(string Ticker, decimal MovePct);
+
+    private string SelectedRange { get; set; } = "1M";
+
+    private bool ShowOrderDialog { get; set; }
+
+    private bool ShowRebalanceDialog { get; set; }
+
+    private bool ShowPositionDialog { get; set; }
+
+    private Position? ActivePosition { get; set; }
+
+    private string ActiveTicker { get; set; } = "AAPL";
+
+    private DateTime LastRefreshed { get; set; } = DateTime.Now;
+
+    private string OrderTicker { get; set; } = "AAPL";
+
+    private string OrderSide { get; set; } = "Buy";
+
+    private decimal OrderQty { get; set; } = 100;
+
+    private decimal OrderLimit { get; set; } = 185.10m;
+
+    private string RebalancePreset { get; set; } = "Equal weight";
+
+    private decimal CashToDeploy { get; set; } = 25000m;
+
+    private decimal PortfolioValue => 1482300.40m;
+
+    private decimal DayPnl => 12450.32m;
+
+    private decimal Cash => 183200m;
+
+    private decimal WinRate => 62m;
+
+    private decimal RealizedPnl => 182400m;
+
+    private decimal Drawdown => 3.8m;
+
+    private IReadOnlyList<string> Ranges { get; } = new[] { "1D", "1W", "1M", "YTD", "1Y" };
+
+    private Dictionary<string, List<decimal>> EquityCurves { get; } = new()
+    {
+        ["1D"] = new() { 48, 52, 58, 54, 62, 68, 70, 73 },
+        ["1W"] = new() { 42, 48, 54, 60, 63, 66, 70, 74, 77, 80, 79 },
+        ["1M"] = new() { 40, 42, 48, 52, 56, 58, 60, 65, 67, 69, 73, 76, 78, 82 },
+        ["YTD"] = new() { 32, 35, 40, 44, 48, 52, 58, 60, 65, 68, 71, 74, 78, 82, 85 },
+        ["1Y"] = new() { 30, 34, 37, 42, 46, 52, 58, 60, 63, 66, 70, 74, 78, 82, 86, 90 }
+    };
+
+    private IReadOnlyList<decimal> SelectedSeries => EquityCurves.TryGetValue(SelectedRange, out var series) ? series : EquityCurves.Values.First();
+
+    private decimal SelectedReturnPct => SelectedSeries.Count <= 1 ? 0 : Math.Round((SelectedSeries.Last() - SelectedSeries.First()) / SelectedSeries.First() * 100, 1);
+
+    private List<decimal> VolumeSeries { get; } = new() { 38, 42, 56, 62, 70, 64, 72, 78 };
+
+    private List<MarketIndex> Indices { get; } = new()
+    {
+        new("S&P 500", 4490.25m, 0.7m, "Cash", new decimal[] { 35, 42, 46, 51, 60, 68, 72 }),
+        new("Nasdaq 100", 15410.42m, 1.2m, "Growth tilt", new decimal[] { 40, 48, 54, 60, 66, 74, 78 }),
+        new("Russell 2000", 1920.33m, -0.4m, "SMID", new decimal[] { 55, 52, 50, 49, 47, 46, 45 })
+    };
+
+    private List<Stat> Stats { get; } = new()
+    {
+        new("1W return", "2.4%", 0.3m),
+        new("Beta", "1.08", -0.02m),
+        new("Volatility", "14.2%", 0.4m),
+        new("Sharpe", "1.18", 0.05m)
+    };
+
+    private List<SectorSlice> Sectors { get; } = new()
+    {
+        new("Tech", 32m, "linear-gradient(90deg, #5aa9ff, #7ce7ac)"),
+        new("Consumer", 18m, "linear-gradient(90deg, #f6d365, #fda085)"),
+        new("Healthcare", 15m, "linear-gradient(90deg, #6a8caf, #9ad5ff)"),
+        new("Industrial", 14m, "linear-gradient(90deg, #9d8aff, #c1e3ff)"),
+        new("Energy", 11m, "linear-gradient(90deg, #ff9a9e, #fecfef)")
+    };
+
+    private List<Position> Positions { get; } = new()
+    {
+        new("AAPL", "Apple Inc.", 185.22m, 0.8m, 3120m, 285000m, 22m, new decimal[] { 42, 46, 55, 60, 64, 70, 74 }),
+        new("MSFT", "Microsoft Corp.", 330.10m, -0.3m, -620m, 251000m, 18m, new decimal[] { 55, 54, 52, 50, 51, 53, 55 }),
+        new("GOOGL", "Alphabet Inc.", 134.55m, 1.1m, 1850m, 198000m, 14m, new decimal[] { 38, 42, 46, 52, 56, 58, 60 }),
+        new("AMZN", "Amazon.com", 142.33m, 1.0m, 1330m, 176000m, 12m, new decimal[] { 36, 38, 42, 46, 52, 60, 64 }),
+        new("NVDA", "NVIDIA Corp.", 450.76m, 2.3m, 4860m, 162000m, 11m, new decimal[] { 62, 68, 72, 78, 80, 86, 92 }),
+        new("XOM", "Exxon Mobil", 108.11m, -0.9m, -980m, 97000m, 7m, new decimal[] { 44, 42, 40, 39, 38, 37, 36 }),
+        new("COST", "Costco", 556.20m, 0.5m, 520m, 93000m, 6m, new decimal[] { 52, 54, 56, 57, 60, 62, 64 })
+    };
+
+    private List<Move> Gainers { get; } = new()
+    {
+        new("NET", "Cloudflare", 73.12m, 5.4m),
+        new("TTD", "Trade Desk", 87.42m, 4.1m),
+        new("ABNB", "Airbnb", 136.08m, 3.6m),
+        new("MDB", "MongoDB", 402.55m, 3.4m)
+    };
+
+    private List<Move> Losers { get; } = new()
+    {
+        new("TSLA", "Tesla", 240.10m, -3.1m),
+        new("CVX", "Chevron", 152.24m, -2.5m),
+        new("PYPL", "PayPal", 59.33m, -2.2m),
+        new("ZM", "Zoom Video", 68.45m, -1.9m)
+    };
+
+    private List<FlowRow> Flows { get; } = new()
+    {
+        new("US Large Cap", 58m, 34m),
+        new("Tech Momentum", 62m, 24m),
+        new("Value/Dividend", 44m, 30m)
+    };
+
+    private List<HeatCell> Heatmap { get; } = new()
+    {
+        new("AAPL", 1.2m),
+        new("MSFT", 0.8m),
+        new("NVDA", 2.1m),
+        new("TSLA", -3.1m),
+        new("AMZN", 1.0m),
+        new("XOM", -0.9m),
+        new("GOOGL", 1.4m),
+        new("META", 2.8m),
+        new("NFLX", -1.6m)
+    };
+
+    private void SelectRange(string range) => SelectedRange = range;
+
+    private void RefreshNow() => LastRefreshed = DateTime.Now;
+
+    private void SetOrderSide(string side) => OrderSide = side;
+
+    private void SetBuySide() => SetOrderSide("Buy");
+
+    private void SetSellSide() => SetOrderSide("Sell");
+
+    private void OpenOrder() => ShowOrderDialog = true;
+
+    private void OpenRebalance() => ShowRebalanceDialog = true;
+
+    private void OpenPosition(Position position)
+    {
+        ActivePosition = position;
+        ShowPositionDialog = true;
+    }
+
+    private void CloseDialogs()
+    {
+        ShowOrderDialog = false;
+        ShowRebalanceDialog = false;
+        ShowPositionDialog = false;
+    }
+}
